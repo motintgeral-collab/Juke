@@ -320,4 +320,35 @@ with tab3:
                 link_url = checkout_session.url
                 st.markdown(f"### [👉 Abrir Sessão de Pagamento da Dedicatória]({link_url})", unsafe_allow_html=True)
             except Exception as e:
-                st.error(f"Erro ao
+                st.error(f"Erro ao comunicar com o Stripe: {e}")
+        else:
+            st.warning("Preenche o teu nome, o destinatário e escolhe a música.")
+
+with tab4:
+    st.subheader("Painel de Controlo Restrito")
+    st.markdown("<p style='color: #86868b; font-size: 0.95rem; margin-bottom: 20px;'>Área exclusiva para gestão de sala e DJ residentes.</p>", unsafe_allow_html=True)
+    palavra_passe = st.text_input("Código de Acesso:", type="password")
+    if palavra_passe == "admin123":
+        st.success("Sessão de administração autenticada.")
+        st.markdown("<div style='margin: 10px 0;'></div>", unsafe_allow_html=True)
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("#### ⚡ Pedidos e Dedicatórias")
+            pedidos_bar = [p for p in dados["pedidos_premium"] if p["bar"] == bar_selecionado]
+            if pedidos_bar:
+                for p in pedidos_bar:
+                    st.info(f"{p['musica']} — *{p['nome']}*")
+            else:
+                st.write("Nenhum pedido prioritário ativo.")
+        with col2:
+            st.markdown("#### 🤖 Tendências da Sala")
+            votos_bar = [v for v in dados["votos"] if v["bar"] == bar_selecionado]
+            if votos_bar:
+                todos = [a for v in votos_bar for a in v["artistas"]]
+                contagem = {art: todos.count(art) for art in set(todos)}
+                for art, total in sorted(contagem.items(), key=lambda x: x[1], reverse=True):
+                    st.write(f"**{art}** — {total} voto(s)")
+            else:
+                st.write("Sem dados analíticos recolhidos.")
+    elif palavra_passe:
+        st.error("Código de acesso incorreto.")
