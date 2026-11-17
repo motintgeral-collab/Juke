@@ -9,10 +9,10 @@ from spotipy.oauth2 import SpotifyOAuth
 
 st.set_page_config(page_title="Jukebox | Apple Experience", page_icon="🎵", layout="centered")
 
-# Configurações seguras via Streamlit Secrets
+# Configurações do Spotify carregadas de forma segura via st.secrets
 SPOTIFY_CLIENT_ID = st.secrets["SPOTIFY_CLIENT_ID"]
 SPOTIFY_CLIENT_SECRET = st.secrets["SPOTIFY_CLIENT_SECRET"]
-SPOTIFY_REDIRECT_URI = "https://jukebox.streamlit.app/" # Substitui pelo teu URL final do Streamlit se necessário
+SPOTIFY_REDIRECT_URI = "https://jukebox.streamlit.app/"
 
 st.markdown("""
     <style>
@@ -112,7 +112,6 @@ dados = carregar_dados()
 if "dedicatorias" not in dados:
     dados["dedicatorias"] = []
 
-# Chave do Stripe carregada de forma segura
 stripe.api_key = st.secrets["STRIPE_API_KEY"]
 
 def pesquisar_artistas_itunes(termo: str):
@@ -177,8 +176,6 @@ st.markdown("<p style='text-align: center; color: #86868b; font-size: 1.15rem; m
 
 bar_selecionado = st.selectbox("📍 Estabelecimento Ativo:", ["Bar Central - Lisboa", "Discoteca 404 - Porto"])
 
-base_url_app = "https://jukebox.streamlit.app/"
-
 query_params = st.query_params
 if query_params.get("pagamento") == "sucesso":
     nome_retorno = query_params.get("nome", "Cliente")
@@ -210,7 +207,7 @@ if query_params.get("pagamento") == "sucesso":
             </script>
         """, unsafe_allow_html=True)
 
-tab1, tab2, tab3, tab4 = st.tabs(["🎤 O que queres ouvir hoje?", "⚡ Prioritário (1,00€)", "💌 Dedicatórias", "🎛️ Consola do Bar"])
+tab1, tab2, tab3, tab4 = st.tabs(["🎤 O que queres ouvir hoje?", "⚡ Prioritário (5,00€)", "💌 Dedicatórias", "🎛️ Consola do Bar"])
 
 with tab1:
     st.subheader("O que queres ouvir hoje?")
@@ -246,11 +243,11 @@ with tab2:
     
     st.markdown("<div style='margin: 20px 0;'></div>", unsafe_allow_html=True)
     
-    if st.button("💳 Continuar para Checkout Seguro (1,00€)", type="primary"):
+    if st.button("💳 Continuar para Checkout Seguro (5,00€)", type="primary"):
         if nome_premium and musica_premium:
             try:
                 from urllib.parse import quote
-                url_sucesso = f"{base_url_app}?pagamento=sucesso&nome={quote(nome_premium)}&musica={quote(musica_premium)}&bar={quote(bar_selecionado)}"
+                url_sucesso = f"https://jukebox.streamlit.app/?pagamento=sucesso&nome={quote(nome_premium)}&musica={quote(musica_premium)}&bar={quote(bar_selecionado)}"
                 
                 checkout_session = stripe.checkout.Session.create(
                     line_items=[{
@@ -260,13 +257,13 @@ with tab2:
                                 'name': f'Furar Fila: {musica_premium} (por {nome_premium})',
                                 'tax_code': 'txcd_10000000',
                             },
-                            'unit_amount': 100,
+                            'unit_amount': 500,  # 5,00 €
                         },
                         'quantity': 1,
                     }],
                     mode='payment',
                     success_url=url_sucesso,
-                    cancel_url=f"{base_url_app}?pagamento=cancelado",
+                    cancel_url='https://jukebox.streamlit.app/?pagamento=cancelado',
                     managed_payments={'enabled': False},
                 )
                 link_url = checkout_session.url
@@ -278,7 +275,7 @@ with tab2:
 
 with tab3:
     st.subheader("💌 Enviar Dedicatória Musical")
-    st.markdown("<p style='color: #86868b; font-size: 0.95rem; margin-bottom: 20px;'>Surpreende alguém especial! Paga 1,00€ para furar a fila e faz com que o sistema anuncie a tua dedicatória em voz alta no bar.</p>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #86868b; font-size: 0.95rem; margin-bottom: 20px;'>Surpreende alguém especial! Paga 5,00€ para furar a fila e faz com que o sistema anuncie a tua dedicatória em voz alta no bar.</p>", unsafe_allow_html=True)
     
     nome_ded = st.text_input("O teu nome:", key="d_nome")
     destinatario_ded = st.text_input("Nome de quem vai receber a dedicatória:", key="d_dest")
@@ -292,11 +289,11 @@ with tab3:
     
     st.markdown("<div style='margin: 20px 0;'></div>", unsafe_allow_html=True)
     
-    if st.button("💳 Pagar 1,00€ e Enviar Dedicatória", type="primary"):
+    if st.button("💳 Pagar 5,00€ e Enviar Dedicatória", type="primary"):
         if nome_ded and destinatario_ded and musica_ded:
             try:
                 from urllib.parse import quote
-                url_sucesso = f"{base_url_app}?pagamento=sucesso&nome={quote(nome_ded)}&musica={quote(musica_ded)}&dedicatoria={quote(destinatario_ded)}&bar={quote(bar_selecionado)}"
+                url_sucesso = f"https://jukebox.streamlit.app/?pagamento=sucesso&nome={quote(nome_ded)}&musica={quote(musica_ded)}&dedicatoria={quote(destinatario_ded)}&bar={quote(bar_selecionado)}"
                 
                 checkout_session = stripe.checkout.Session.create(
                     line_items=[{
@@ -306,13 +303,13 @@ with tab3:
                                 'name': f'Dedicatória para {destinatario_ded}: {musica_ded}',
                                 'tax_code': 'txcd_10000000',
                             },
-                            'unit_amount': 100,
+                            'unit_amount': 500,  # 5,00 €
                         },
                         'quantity': 1,
                     }],
                     mode='payment',
                     success_url=url_sucesso,
-                    cancel_url=f"{base_url_app}?pagamento=cancelado",
+                    cancel_url='https://jukebox.streamlit.app/?pagamento=cancelado',
                     managed_payments={'enabled': False},
                 )
                 link_url = checkout_session.url
