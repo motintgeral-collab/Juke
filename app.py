@@ -1,18 +1,19 @@
-import streamlit as st 
+import streamlit as st
 import json
 import os
 import requests
 from streamlit_searchbox import st_searchbox
 import stripe
 import spotipy
-from spotipy.oauth2 import SpotifyOAuth
+from spotipy.oauth2 import SpotifyClientCredentials
 
 st.set_page_config(page_title="Jukebox | Apple Experience", page_icon="🎵", layout="centered")
 
-# Configurações do Spotify carregadas de forma segura via st.secrets
+# Configurações carregadas de forma segura via st.secrets
 SPOTIFY_CLIENT_ID = st.secrets["SPOTIFY_CLIENT_ID"]
 SPOTIFY_CLIENT_SECRET = st.secrets["SPOTIFY_CLIENT_SECRET"]
 SPOTIFY_REDIRECT_URI = "https://jukebox.streamlit.app/"
+stripe.api_key = st.secrets["STRIPE_API_KEY"]
 
 st.markdown("""
     <style>
@@ -112,8 +113,6 @@ dados = carregar_dados()
 if "dedicatorias" not in dados:
     dados["dedicatorias"] = []
 
-stripe.api_key = st.secrets["STRIPE_API_KEY"]
-
 def pesquisar_artistas_itunes(termo: str):
     if not termo or len(termo.strip()) < 2:
         return []
@@ -151,20 +150,26 @@ def pesquisar_musicas_itunes(termo: str):
 
 def adicionar_ao_spotify(termo_musica):
     try:
-        sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
+        auth_manager = SpotifyClientCredentials(
             client_id=SPOTIFY_CLIENT_ID,
-            client_secret=SPOTIFY_CLIENT_SECRET,
-            redirect_uri=SPOTIFY_REDIRECT_URI,
-            scope="user-modify-playback-state user-read-playback-state",
-            cache_path=".spotify_tokenache"
-        ))
+            client_secret=SPOTIFY_CLIENT_SECRET
+        )
+        sp = spotipy.Spotify(auth_manager=auth_manager)
         
         resultado = sp.search(q=termo_musica, type='track', limit=1)
         tracks = resultado.get('tracks', {}).get('items', [])
         
         if tracks:
             track_uri = tracks[0]['uri']
-            sp.add_to_queue(track_uri)
+            try:
+                dispositivos = sp.devices()
+                dispositivo_ativo = next((d['id'] for d in dispositivos.get('devices', []) if d['is_active']), None)
+                if dispositivo_ativo:
+                    sp.add_to_queue(track_uri, device_id=dispositivo_ativo)
+                else:
+                    sp.add_to_queue(track_uri)
+            except Exception:
+                pass
             return True
     except Exception as e:
         print(f"Erro Spotify: {e}")
@@ -315,35 +320,4 @@ with tab3:
                 link_url = checkout_session.url
                 st.markdown(f"### [👉 Abrir Sessão de Pagamento da Dedicatória]({link_url})", unsafe_allow_html=True)
             except Exception as e:
-                st.error(f"Erro ao comunicar com o Stripe: {e}")
-        else:
-            st.warning("Preenche o teu nome, o destinatário e escolhe a música.")
-
-with tab4:
-    st.subheader("Painel de Controlo Restrito")
-    st.markdown("<p style='color: #86868b; font-size: 0.95rem; margin-bottom: 20px;'>Área exclusiva para gestão de sala e DJ residentes.</p>", unsafe_allow_html=True)
-    palavra_passe = st.text_input("Código de Acesso:", type="password")
-    if palavra_passe == "admin123":
-        st.success("Sessão de administração autenticada.")
-        st.markdown("<div style='margin: 10px 0;'></div>", unsafe_allow_html=True)
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("#### ⚡ Pedidos e Dedicatórias")
-            pedidos_bar = [p for p in dados["pedidos_premium"] if p["bar"] == bar_selecionado]
-            if pedidos_bar:
-                for p in pedidos_bar:
-                    st.info(f"{p['musica']} — *{p['nome']}*")
-            else:
-                st.write("Nenhum pedido prioritário ativo.")
-        with col2:
-            st.markdown("#### 🤖 Tendências da Sala")
-            votos_bar = [v for v in dados["votos"] if v["bar"] == bar_selecionado]
-            if votos_bar:
-                todos = [a for v in votos_bar for a in v["artistas"]]
-                contagem = {art: todos.count(art) for art in set(todos)}
-                for art, total in sorted(contagem.items(), key=lambda x: x[1], reverse=True):
-                    st.write(f"**{art}** — {total} voto(s)")
-            else:
-                st.write("Sem dados analíticos recolhidos.")
-    elif palavra_passe:
-        st.error("Código de acesso incorreto.")
+                st.error(f"Erro ao
